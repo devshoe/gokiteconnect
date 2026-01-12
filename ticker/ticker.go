@@ -26,6 +26,8 @@ type Ticker struct {
 
 	apiKey      string
 	accessToken string
+	enctoken    string
+	userid      string
 
 	url                 url.URL
 	callbacks           callbacks
@@ -47,12 +49,12 @@ type Ticker struct {
 type atomicTime struct {
 	v atomic.Value
 }
-	
+
 // Get returns the current timestamp.
 func (b *atomicTime) Get() time.Time {
 	return b.v.Load().(time.Time)
 }
-	 
+
 // Set sets the current timestamp.
 func (b *atomicTime) Set(value time.Time) {
 	b.v.Store(value)
@@ -180,6 +182,12 @@ func (t *Ticker) SetAccessToken(aToken string) {
 	t.accessToken = aToken
 }
 
+// SetEncToken sets the encryption token to the Ticker instance.
+func (t *Ticker) SetEncToken(userid, enctoken string) {
+	t.enctoken = enctoken
+	t.userid = userid
+}
+
 // SetConnectTimeout sets default timeout for initial connect handshake
 func (t *Ticker) SetConnectTimeout(val time.Duration) {
 	t.connectTimeout = val
@@ -288,8 +296,18 @@ func (t *Ticker) ServeWithContext(ctx context.Context) {
 
 			// Prepare ticker URL with required params.
 			q := t.url.Query()
-			q.Set("api_key", t.apiKey)
-			q.Set("access_token", t.accessToken)
+			if t.enctoken != "" {
+				t.url.Host = "ws.zerodha.com"
+				q.Set("api_key", "kitefront")
+				q.Set("user_id", t.userid)
+				q.Set("enctoken", t.enctoken)
+				q.Set("uid", fmt.Sprintf("%d", time.Now().UnixNano()/int64(time.Millisecond)))
+				q.Set("user-agent", "kite3-web")
+				q.Set("version", "3.0.0")
+			} else {
+				q.Set("api_key", t.apiKey)
+				q.Set("access_token", t.accessToken)
+			}
 			t.url.RawQuery = q.Encode()
 
 			// create a dialer
@@ -356,7 +374,6 @@ func (t *Ticker) handleClose(code int, reason string) error {
 	return nil
 }
 
-
 // Trigger callback methods
 func (t *Ticker) triggerError(err error) {
 	if t.callbacks.onError != nil {
@@ -387,7 +404,6 @@ func (t *Ticker) triggerNoReconnect(attempt int) {
 		t.callbacks.onNoReconnect(attempt)
 	}
 }
-
 
 func (t *Ticker) triggerMessage(messageType int, message []byte) {
 	if t.callbacks.onMessage != nil {
@@ -776,4 +792,3 @@ func convertPrice(seg uint32, val float64) float64 {
 		return val / 100.0
 	}
 }
-
