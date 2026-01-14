@@ -12,9 +12,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	kiteconnect "github.com/devshoe/gokiteconnect"
+	"github.com/devshoe/gokiteconnect/models"
 	"github.com/gorilla/websocket"
-	kiteconnect "github.com/zerodha/gokiteconnect/v4"
-	"github.com/zerodha/gokiteconnect/v4/models"
 )
 
 // Mode represents available ticker modes.

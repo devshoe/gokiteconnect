@@ -5,29 +5,30 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/zerodha/gokiteconnect/v4/models"
-	kiteticker "github.com/zerodha/gokiteconnect/v4/ticker"
+	"github.com/devshoe/gokiteconnect/models"
+	kiteticker "github.com/devshoe/gokiteconnect/ticker"
+	"github.com/devshoe/gokiteconnect/zerodha"
 )
 
 var (
 	// Nifty 50 instrument token
 	tokenNifty50 uint32 = 256265
+	username     string = ""
+	password     string = ""
+	twofa        string = ""
+	apiKey       string = ""
+	apiSecret    string = ""
 )
 
 func main() {
-	enctoken := os.Getenv("ENCTOKEN")
-	if enctoken == "" {
-		// Fallback for convenience if not set
-		enctoken = ""
-	}
+	z := zerodha.NewLoginClient(
+		zerodha.WithWebUserCredentials(username, password, twofa),
+		zerodha.WithAPIUserCredentials(apiKey, apiSecret),
+	)
 
-	// Initialize Ticker
-	// API key and access token are not used when enctoken is set, but required by constructor
-	ticker := kiteticker.New("my_api_key", "my_access_token")
+	z.Login()
 
-	// Set enctoken
-	ticker.SetEncToken(enctoken, "")
-
+	ticker := z.KiteTicker()
 	// Callback for connection establishment
 	ticker.OnConnect(func() {
 		fmt.Println("Connected")
