@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/devshoe/gokiteconnect/models"
 	"github.com/gocarina/gocsv"
 	"github.com/google/go-querystring/query"
-	"github.com/zerodha/gokiteconnect/v4/models"
 )
 
 type quoteParams struct {
@@ -125,6 +125,9 @@ func (c *Client) GetQuote(instruments ...string) (Quote, error) {
 		qParams quoteParams
 	)
 
+	if c.enctoken != "" {
+		return nil, NewError(InputError, "Endpoint not supported for enctoken", nil)
+	}
 	qParams = quoteParams{
 		Instruments: instruments,
 	}

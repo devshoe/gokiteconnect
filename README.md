@@ -75,7 +75,7 @@ import (
 	"time"
 
 	kiteconnect "github.com/zerodha/gokiteconnect/v4"
-	kitemodels "github.com/zerodha/gokiteconnect/v4/models"
+	kitemodels "github.com/devshoe/gokiteconnect/models"
 	kiteticker "github.com/zerodha/gokiteconnect/v4/ticker"
 )
 

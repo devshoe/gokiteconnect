@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	kitemodels "github.com/devshoe/gokiteconnect/models"
 	kiteconnect "github.com/zerodha/gokiteconnect/v4"
-	kitemodels "github.com/zerodha/gokiteconnect/v4/models"
 	kiteticker "github.com/zerodha/gokiteconnect/v4/ticker"
 )
 
