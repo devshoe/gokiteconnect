@@ -54,9 +54,9 @@ type LoginClient struct {
 	apiKey     string
 	apiSecret  string
 
-	enctoken     string
-	requestToken string
-	accessToken  string
+	EncToken     string
+	RequestToken string
+	AccessToken  string
 
 	loggedIn bool
 }
@@ -84,14 +84,14 @@ func WithAPIUserCredentials(apiKey, apiSecret string) LoginClientOption {
 // WithEncToken is used to set the enctoken: if you are already logged in
 func WithEncToken(enctoken string) LoginClientOption {
 	return func(z *LoginClient) {
-		z.enctoken = enctoken
+		z.EncToken = enctoken
 	}
 }
 
 // WithAccessToken is used to set the accessToken: if you are already logged in
 func WithAccessToken(accessToken string) LoginClientOption {
 	return func(z *LoginClient) {
-		z.accessToken = accessToken
+		z.AccessToken = accessToken
 	}
 }
 
@@ -121,8 +121,7 @@ func (lc *LoginClient) LoginIfRequired() (bool, error) {
 	if err := lc.Login(); err != nil {
 		return false, err
 	}
-	fmt.Println(lc.enctoken)
-	fmt.Println(lc.accessToken)
+
 	return true, nil
 }
 
@@ -196,18 +195,18 @@ func (lc *LoginClient) KiteClient() *kiteconnect.Client {
 	c := kiteconnect.New(lc.apiKey)
 	c.SetHTTPClient(lc.getKiteHTTPClient(1))
 	if lc.isAPIUser() {
-		c.SetAccessToken(lc.accessToken)
+		c.SetAccessToken(lc.AccessToken)
 	} else {
-		c.SetEncToken(lc.enctoken)
+		c.SetEncToken(lc.EncToken)
 	}
 	return c
 }
 
 // KiteTicker returns a new KiteTicker
 func (lc *LoginClient) KiteTicker() *kiteticker.Ticker {
-	tkr := kiteticker.New(lc.apiKey, lc.accessToken)
+	tkr := kiteticker.New(lc.apiKey, lc.AccessToken)
 	if !lc.isAPIUser() {
-		tkr.SetEncToken(lc.username, lc.enctoken)
+		tkr.SetEncToken(lc.username, lc.EncToken)
 	}
 	return tkr
 }
@@ -220,7 +219,7 @@ func (lc *LoginClient) setEncToken() error {
 
 	for _, cookie := range lc.baseLoginCookies {
 		if cookie.Name == "enctoken" {
-			lc.enctoken = cookie.Value
+			lc.EncToken = cookie.Value
 			return nil
 		}
 	}
@@ -250,8 +249,8 @@ func (lc *LoginClient) setAccessToken() error {
 		return fmt.Errorf("(ZerodhaLoginClient.AccessToken) kite session gen failed with request token - %w", err)
 	}
 
-	lc.requestToken = requestToken
-	lc.accessToken = session.AccessToken
+	lc.RequestToken = requestToken
+	lc.AccessToken = session.AccessToken
 	return nil
 }
 
