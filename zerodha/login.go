@@ -112,17 +112,17 @@ func NewLoginClient(options ...LoginClientOption) *LoginClient {
 }
 
 // LoginIfRequired checks if the enctoken or accessToken is valid, attempts a login otherwise
-func (lc *LoginClient) LoginIfRequired() (bool, error) {
-	_, err := lc.KiteClient().GetUserProfile()
-	if err == nil {
-		return false, nil
+// returns user profile if login is successful
+func (lc *LoginClient) LoginIfRequired() (*kiteconnect.UserProfile, error) {
+	if profile, err := lc.KiteClient().GetUserProfile(); err == nil {
+		return &profile, nil
+	} else if err = lc.Login(); err != nil {
+		return nil, err
+	} else if profile, err = lc.KiteClient().GetUserProfile(); err != nil {
+		return nil, err
+	} else {
+		return &profile, nil
 	}
-
-	if err := lc.Login(); err != nil {
-		return false, err
-	}
-
-	return true, nil
 }
 
 // Login force logs in to Zerodha and stores all cookies
