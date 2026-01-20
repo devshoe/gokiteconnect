@@ -113,15 +113,15 @@ func NewLoginClient(options ...LoginClientOption) *LoginClient {
 
 // LoginIfRequired checks if the enctoken or accessToken is valid, attempts a login otherwise
 // returns user profile if login is successful
-func (lc *LoginClient) LoginIfRequired() (*kiteconnect.UserProfile, error) {
+func (lc *LoginClient) LoginIfRequired() (*kiteconnect.UserProfile, bool, error) {
 	if profile, err := lc.KiteClient().GetUserProfile(); err == nil {
-		return &profile, nil
+		return &profile, false, nil
 	} else if err = lc.Login(); err != nil {
-		return nil, err
+		return nil, false, err
 	} else if profile, err = lc.KiteClient().GetUserProfile(); err != nil {
-		return nil, err
+		return nil, false, err
 	} else {
-		return &profile, nil
+		return &profile, true, nil
 	}
 }
 
