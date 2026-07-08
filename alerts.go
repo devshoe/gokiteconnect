@@ -142,25 +142,25 @@ type AlertHistory struct {
 
 // AlertHistoryMeta represents meta info for alert history.
 type AlertHistoryMeta struct {
-	InstrumentToken   int     `json:"instrument_token"`
-	TradingSymbol     string  `json:"tradingsymbol"`
-	Timestamp         string  `json:"timestamp"`
-	LastPrice         float64 `json:"last_price"`
+	InstrumentToken   int         `json:"instrument_token"`
+	TradingSymbol     string      `json:"tradingsymbol"`
+	Timestamp         string      `json:"timestamp"`
+	LastPrice         float64     `json:"last_price"`
 	OHLC              models.OHLC `json:"ohlc"`
-	NetChange         float64 `json:"net_change"`
-	Exchange          string  `json:"exchange"`
-	LastTradeTime     string  `json:"last_trade_time"`
-	LastQuantity      int     `json:"last_quantity"`
-	BuyQuantity       int     `json:"buy_quantity"`
-	SellQuantity      int     `json:"sell_quantity"`
-	Volume            int     `json:"volume"`
-	VolumeTick        int     `json:"volume_tick"`
-	AveragePrice      float64 `json:"average_price"`
-	OI                int     `json:"oi"`
-	OIDayHigh         int     `json:"oi_day_high"`
-	OIDayLow          int     `json:"oi_day_low"`
-	LowerCircuitLimit float64 `json:"lower_circuit_limit"`
-	UpperCircuitLimit float64 `json:"upper_circuit_limit"`
+	NetChange         float64     `json:"net_change"`
+	Exchange          string      `json:"exchange"`
+	LastTradeTime     string      `json:"last_trade_time"`
+	LastQuantity      int         `json:"last_quantity"`
+	BuyQuantity       int         `json:"buy_quantity"`
+	SellQuantity      int         `json:"sell_quantity"`
+	Volume            int         `json:"volume"`
+	VolumeTick        int         `json:"volume_tick"`
+	AveragePrice      float64     `json:"average_price"`
+	OI                int         `json:"oi"`
+	OIDayHigh         int         `json:"oi_day_high"`
+	OIDayLow          int         `json:"oi_day_low"`
+	LowerCircuitLimit float64     `json:"lower_circuit_limit"`
+	UpperCircuitLimit float64     `json:"upper_circuit_limit"`
 }
 
 // CreateAlert creates a new alert.
@@ -267,8 +267,7 @@ func (c *Client) DeleteAlerts(uuids ...string) error {
 		Status string      `json:"status"`
 		Data   interface{} `json:"data"`
 	}
-	deleteURL := URIAlerts + "?" + params.Encode()
-	err := c.doEnvelope(http.MethodDelete, deleteURL, nil, nil, &resp)
+	err := c.doEnvelope(http.MethodDelete, URIAlerts, params, nil, &resp)
 	return err
 }
 
