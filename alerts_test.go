@@ -1,6 +1,9 @@
 package kiteconnect
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -83,6 +86,31 @@ func (ts *TestSuite) TestDeleteAlerts(t *testing.T) {
 	err := ts.KiteConnect.DeleteAlerts(testUUID)
 	if err != nil {
 		t.Errorf("Error while deleting alert: %v", err)
+	}
+}
+
+func TestDeleteAlertsPreservesUUIDQuery(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE request, got %s", r.Method)
+		}
+		if got := r.URL.Query()["uuid"]; len(got) != 2 || got[0] != "uuid-1" || got[1] != "uuid-2" {
+			t.Fatalf("expected uuid query values to be preserved, got %v", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"success","data":null}`)
+	}))
+	defer server.Close()
+
+	kc := New("test_api_key")
+	kc.SetBaseURI(server.URL)
+	kc.SetAccessToken("test_access_token")
+
+	err := kc.DeleteAlerts("uuid-1", "uuid-2")
+	if err != nil {
+		t.Fatalf("expected delete alerts to succeed, got %v", err)
 	}
 }
 
