@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	kiteconnect "github.com/devshoe/gokiteconnect"
 	kitemodels "github.com/devshoe/gokiteconnect/models"
-	kiteconnect "github.com/zerodha/gokiteconnect/v4"
-	kiteticker "github.com/zerodha/gokiteconnect/v4/ticker"
+	kiteticker "github.com/devshoe/gokiteconnect/ticker"
 )
 
 var (

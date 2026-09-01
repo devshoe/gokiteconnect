@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	httpmock "gopkg.in/jarcoal/httpmock.v1"
+	"github.com/jarcoal/httpmock"
 )
 
 // TestEnctokenAuthorization verifies that enctoken is used for authorization
@@ -21,8 +21,8 @@ func TestEnctokenAuthorization(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	// Verify that baseURI is updated
-	if client.baseURI != "https://kite.zerodha.com" {
-		t.Errorf("Expected baseURI to be https://kite.zerodha.com, got %s", client.baseURI)
+	if client.baseURI != "https://kite.zerodha.com/oms" {
+		t.Errorf("Expected baseURI to be https://kite.zerodha.com/oms, got %s", client.baseURI)
 	}
 
 	// Mock response

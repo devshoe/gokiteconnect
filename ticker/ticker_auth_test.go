@@ -9,8 +9,9 @@ func TestTickerEnctoken(t *testing.T) {
 	apiKey := "test_api_key"
 	accessToken := "test_access_token"
 	ticker := New(apiKey, accessToken)
+	userID := "test_user_id"
 	enctoken := "my_enc_token"
-	ticker.SetEncToken(enctoken)
+	ticker.SetEncToken(userID, enctoken)
 
 	// Simulate ServeWithContext logic to populate params
 	q := ticker.url.Query()
