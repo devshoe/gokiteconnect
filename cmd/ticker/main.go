@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
+	credentials "github.com/devshoe/gokiteconnect/credentials"
 	"github.com/devshoe/gokiteconnect/models"
 	kiteticker "github.com/devshoe/gokiteconnect/ticker"
-	"github.com/devshoe/gokiteconnect/zerodha"
 )
 
 var (
@@ -21,12 +22,21 @@ var (
 )
 
 func main() {
-	z := zerodha.NewLoginClient(
-		zerodha.WithWebUserCredentials(username, password, twofa),
-		zerodha.WithAPIUserCredentials(apiKey, apiSecret),
-	)
+	z, err := credentials.NewUser(credentials.Credentials{
+		UserID:     username,
+		Password:   password,
+		TOTPSecret: twofa,
+		APIKey:     apiKey,
+		APISecret:  apiSecret,
+		IsAPIUser:  apiKey != "" && apiSecret != "",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	z.Login()
+	if err := z.Login(); err != nil {
+		log.Fatal(err)
+	}
 
 	ticker := z.KiteTicker()
 	// Callback for connection establishment

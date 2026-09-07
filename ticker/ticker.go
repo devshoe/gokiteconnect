@@ -614,7 +614,7 @@ func (t *Ticker) processTextMessage(inp []byte) {
 
 	if msg.Type == messageError {
 		// Trigger text error
-		t.triggerError(fmt.Errorf(msg.Data.(string)))
+		t.triggerError(fmt.Errorf("%s", msg.Data.(string)))
 	} else if msg.Type == messageOrder {
 		// Parse order update data
 		order := struct {
