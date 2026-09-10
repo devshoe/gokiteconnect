@@ -1,6 +1,7 @@
 package instruments
 
 import (
+	"database/sql"
 	"errors"
 	"reflect"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	kiteconnect "github.com/devshoe/gokiteconnect"
 	"github.com/devshoe/gokiteconnect/models"
+	_ "github.com/duckdb/duckdb-go/v2"
 )
 
 func TestParseInstrumentID(t *testing.T) {
@@ -117,6 +119,104 @@ func TestNormalizeSnapshotRejectsInvalidSnapshots(t *testing.T) {
 	}
 }
 
+func TestEquivalentSQLMatchesGoNormalization(t *testing.T) {
+	nearExpiry := instrumentDate(2026, time.June, 25)
+	farExpiry := instrumentDate(2026, time.July, 30)
+	source := kiteconnect.Instruments{
+		rawInstrument(256265, " nse ", "nifty 50", "NIFTY 50", "indices", "eq", time.Time{}, 0),
+		rawInstrument(408065, "NSE", "infy", " Infosys ", "nse", "eq", time.Time{}, 0),
+		rawInstrument(1004, "BSE", "sensex", "SENSEX", "indices", "eq", time.Time{}, 0),
+		rawInstrument(2002, "NFO", "nifty26julfut", "nifty", "nfo-fut", "fut", farExpiry, 0),
+		rawInstrument(2001, "NFO", "nifty26junfut", "nifty", "nfo-fut", "fut", nearExpiry, 0),
+		rawInstrument(3001, "NFO", "nifty26jun20000ce", "nifty", "nfo-opt", "ce", nearExpiry, 20000),
+		rawInstrument(3002, "NFO", "nifty26jun20000pe", "nifty", "nfo-opt", "pe", nearExpiry, 20000),
+		rawInstrument(4001, "BFO", "sensex26jun80000ce", "sensex", "bfo-opt", "ce", nearExpiry, 80000),
+		rawInstrument(5001, "MCX", "crudeoil26junfut", "crudeoil", "mcx-fut", "fut", nearExpiry, 0),
+	}
+
+	want, err := normalizeSnapshot(source)
+	if err != nil {
+		t.Fatalf("normalizeSnapshot() error = %v", err)
+	}
+
+	db, err := sql.Open("duckdb", ":memory:")
+	if err != nil {
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`
+		CREATE TABLE source_instruments (
+			instrument_token BIGINT,
+			exchange_token INTEGER,
+			tradingsymbol VARCHAR,
+			name VARCHAR,
+			expiry DATE,
+			strike DOUBLE,
+			tick_size DOUBLE,
+			lot_size DOUBLE,
+			instrument_type VARCHAR,
+			segment VARCHAR,
+			exchange VARCHAR
+		)
+	`); err != nil {
+		t.Fatalf("create source_instruments: %v", err)
+	}
+
+	insert, err := db.Prepare(`INSERT INTO source_instruments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		t.Fatalf("prepare source insert: %v", err)
+	}
+	for _, instrument := range source {
+		var expiry any
+		if !instrument.Expiry.IsZero() {
+			expiry = dateKey(instrument.Expiry.Time)
+		}
+		if _, err := insert.Exec(
+			instrument.InstrumentToken,
+			instrument.ExchangeToken,
+			instrument.Tradingsymbol,
+			instrument.Name,
+			expiry,
+			instrument.StrikePrice,
+			instrument.TickSize,
+			instrument.LotSize,
+			instrument.InstrumentType,
+			instrument.Segment,
+			instrument.Exchange,
+		); err != nil {
+			t.Fatalf("insert source instrument: %v", err)
+		}
+	}
+	if err := insert.Close(); err != nil {
+		t.Fatalf("close source insert: %v", err)
+	}
+
+	rows, err := db.Query(equivalentSQL)
+	if err != nil {
+		t.Fatalf("equivalentSQL query error = %v", err)
+	}
+	defer rows.Close()
+	got := make(map[InstrumentID]Instrument, len(source))
+	for rows.Next() {
+		instrument, err := scanNormalizedInstrument(rows)
+		if err != nil {
+			t.Fatalf("scan equivalentSQL row: %v", err)
+		}
+		got[instrument.ID] = instrument
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("equivalentSQL rows error = %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("equivalentSQL returned %d rows, want %d", len(got), len(want))
+	}
+	for _, instrument := range want {
+		if !reflect.DeepEqual(got[instrument.ID], instrument) {
+			t.Errorf("equivalentSQL instrument %s = %#v, want %#v", instrument.ID, got[instrument.ID], instrument)
+		}
+	}
+}
+
 func TestNormalizeFilters(t *testing.T) {
 	minStrike, maxStrike := 100.0, 200.0
 	got, err := normalizeOptionsFilter(OptionsFilter{
@@ -172,4 +272,53 @@ func instrumentWithLotSize(instrument kiteconnect.Instrument, lotSize float64) k
 
 func instrumentDate(year int, month time.Month, day int) time.Time {
 	return time.Date(year, month, day, 0, 0, 0, 0, indiaLocation)
+}
+
+func scanNormalizedInstrument(rows *sql.Rows) (Instrument, error) {
+	var (
+		instrument   Instrument
+		name         sql.NullString
+		expiry       sql.NullTime
+		expiryNumber sql.NullInt64
+		underlyingID sql.NullString
+	)
+	err := rows.Scan(
+		&instrument.ID,
+		&instrument.Exchange,
+		&instrument.TradingSymbol,
+		&instrument.InstrumentToken,
+		&instrument.ExchangeToken,
+		&name,
+		&instrument.DisplayName,
+		&instrument.SearchString,
+		&expiry,
+		&expiryNumber,
+		&instrument.Strike,
+		&instrument.TickSize,
+		&instrument.LotSize,
+		&instrument.InstrumentType,
+		&instrument.Segment,
+		&instrument.IsFO,
+		&underlyingID,
+		&instrument.UnderlyingIsListed,
+		&instrument.OptionsCount,
+		&instrument.FuturesCount,
+	)
+	if err != nil {
+		return Instrument{}, err
+	}
+	if name.Valid {
+		instrument.Name = stringPointer(name.String)
+	}
+	if expiry.Valid {
+		instrument.Expiry = timePointer(normalizeDate(expiry.Time))
+	}
+	if expiryNumber.Valid {
+		instrument.ExpiryNumber = intPointer(int(expiryNumber.Int64))
+	}
+	if underlyingID.Valid {
+		id := InstrumentID(underlyingID.String)
+		instrument.UnderlyingID = &id
+	}
+	return instrument, nil
 }
