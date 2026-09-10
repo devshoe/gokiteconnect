@@ -73,6 +73,28 @@ type historicalDataParams struct {
 	Interval        string `url:"interval"`
 }
 
+const historicalBatchDelay = 100 * time.Millisecond
+
+// historicalBatchDuration returns the maximum date range used for a single
+// historical-data request. These limits mirror the interval-specific batching
+// rules used by tradebot.
+func historicalBatchDuration(interval string) (time.Duration, bool) {
+	switch interval {
+	case "minute", "2minute":
+		return 60 * 24 * time.Hour, true
+	case "3minute", "4minute", "5minute", "10minute":
+		return 100 * 24 * time.Hour, true
+	case "15minute", "30minute":
+		return 200 * 24 * time.Hour, true
+	case "60minute", "2hour", "3hour", "4hour":
+		return 400 * 24 * time.Hour, true
+	case "day", "week":
+		return 2000 * 24 * time.Hour, true
+	default:
+		return 0, false
+	}
+}
+
 // Instrument represents individual instrument response.
 type Instrument struct {
 	InstrumentToken int         `csv:"instrument_token"`
@@ -254,8 +276,41 @@ func (c *Client) formatHistoricalData(inp historicalDataReceived) ([]HistoricalD
 	return data, nil
 }
 
-// GetHistoricalData gets list of historical data.
+// GetHistoricalData gets historical OHLCV candles for an instrument token.
+// Large ranges are split into interval-specific batches internally and the
+// results are returned in request order. Adjacent requests use half-open
+// [from, to) bounds and are delayed by 100ms to respect upstream rate limits.
+// Unknown interval strings retain the legacy single-request behavior.
 func (c *Client) GetHistoricalData(instrumentToken int, interval string, fromDate time.Time, toDate time.Time, continuous bool, OI bool) ([]HistoricalData, error) {
+	batchSize, batchable := historicalBatchDuration(interval)
+	if !batchable || !toDate.After(fromDate) || !fromDate.Add(batchSize).Before(toDate) {
+		return c.getHistoricalDataBatch(instrumentToken, interval, fromDate, toDate, continuous, OI)
+	}
+
+	var data []HistoricalData
+	for batchStart := fromDate; batchStart.Before(toDate); {
+		batchEnd := batchStart.Add(batchSize)
+		if batchEnd.After(toDate) {
+			batchEnd = toDate
+		}
+
+		batch, err := c.getHistoricalDataBatch(instrumentToken, interval, batchStart, batchEnd, continuous, OI)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, batch...)
+
+		batchStart = batchEnd
+		if batchStart.Before(toDate) {
+			time.Sleep(historicalBatchDelay)
+		}
+	}
+
+	return data, nil
+}
+
+// getHistoricalDataBatch makes exactly one historical-data request.
+func (c *Client) getHistoricalDataBatch(instrumentToken int, interval string, fromDate time.Time, toDate time.Time, continuous bool, OI bool) ([]HistoricalData, error) {
 	var (
 		err       error
 		data      []HistoricalData

@@ -65,6 +65,56 @@ func main() {
 }
 ```
 
+## Local instrument catalog
+
+The `instruments` package builds a normalized, searchable DuckDB catalog from
+the Zerodha instrument master. Opening the catalog refreshes it automatically
+when it has not been updated during the current day in Asia/Kolkata.
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+
+	kiteconnect "github.com/devshoe/gokiteconnect"
+	"github.com/devshoe/gokiteconnect/instruments"
+	instrumentrepo "github.com/devshoe/gokiteconnect/instruments/repository"
+)
+
+func main() {
+	ctx := context.Background()
+	kite := kiteconnect.New("my_api_key")
+	kite.SetAccessToken("my_access_token")
+
+	repository, err := instrumentrepo.NewDuckDB(ctx, "instruments.duckdb")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	catalog, err := instruments.NewClient(ctx, kite, repository)
+	if err != nil {
+		_ = repository.Close()
+		log.Fatal(err)
+	}
+	defer catalog.Close()
+
+	options, err := catalog.GetOptions(ctx, instruments.OptionsFilter{
+		UnderlyingID: "NSE:NIFTY 50",
+		Types:        []instruments.OptionType{instruments.OptionTypeCall},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("found %d call options", len(options))
+}
+```
+
+Use a new database path, or reopen a database previously created by the DuckDB
+repository. Legacy tradebot databases are rejected without modification. DuckDB
+uses CGO, so builds must have a working C toolchain and `CGO_ENABLED=1`.
+
 ## Kite ticker usage
 
 ```go
